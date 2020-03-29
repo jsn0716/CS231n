@@ -33,8 +33,27 @@ def softmax_loss_naive(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+    
+    for i in range(num_train):
+        scores = X[i].dot(W) # 1D vector of scores
+        scores -= np.max(scores) # Normalize for numerical stability
+        exp_scores = np.exp(scores)
+        exp_scores_sum = np.sum(exp_scores)
+        loss += -scores[y[i]] + np.log(exp_scores_sum)
+        for j in range(num_classes):
+            if j == y[i]:
+                dW[:, j] += X[i] * (exp_scores[j] / exp_scores_sum - 1)
+            else:
+                dW[:, j] += X[i] * (exp_scores[j] / exp_scores_sum)
 
+    loss /= num_train
+    loss += reg * np.sum(W * W)
+    
+    dW /= num_train
+    dW += 2 * reg * W
+        
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
     return loss, dW
@@ -58,7 +77,24 @@ def softmax_loss_vectorized(W, X, y, reg):
     #############################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    num_train = X.shape[0]
+    num_classes = W.shape[1]
+    
+    scores = X.dot(W) # 2D matrix of scores with shape (num_train, num_classes)
+    scores -= np.max(scores, axis=1)[:, None] # Normalize scores for each row
+    exp_scores = np.exp(scores)
+    exp_scores_sum = np.sum(exp_scores, axis=1)
+    
+    loss += np.sum(-scores[np.arange(num_train), y] + np.log(exp_scores_sum))
+    loss /= num_train
+    loss += reg * np.sum(W * W)
+    
+    grad_coeffs = np.zeros(scores.shape)
+    grad_coeffs += exp_scores / exp_scores_sum[:, None]
+    grad_coeffs[np.arange(num_train), y] -= 1
+    dW += np.dot(X.T, grad_coeffs)
+    dW /= num_train
+    dW += 2 * reg * W
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 

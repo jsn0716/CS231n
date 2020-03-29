@@ -80,7 +80,8 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        hidden_layer_scores = np.maximum(0, X.dot(W1) + b1)
+        scores = hidden_layer_scores.dot(W2) + b2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -98,7 +99,15 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        C = b2.shape[0]
+        
+        normalized_scores = scores - np.max(scores, axis=1, keepdims=True)
+        exp_scores = np.exp(normalized_scores)
+        exp_scores_sum = np.sum(exp_scores, axis=1)
+        
+        loss = np.sum(-normalized_scores[np.arange(N), y] + np.log(exp_scores_sum))
+        loss /= N
+        loss += reg * (np.sum(W1 * W1) + np.sum(W2 * W2))
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -111,7 +120,44 @@ class TwoLayerNet(object):
         #############################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        # Derivative of loss w.r.t. score matrix
+        #
+        #        f_y_i     
+        # dL    e          
+        # ── = ──────── - 1
+        # dS   ___         
+        #      ╲    f_j    
+        #      ╱   e       
+        #      ‾‾‾         
+        #       j          
+        dS = np.zeros(scores.shape)
+        dS += exp_scores / exp_scores_sum[:, None]
+        dS[np.arange(N), y] -= 1
+        dS /= N # Scale by N here to avoid scaling each individual gradients below
+        
+        # Derivative of loss w.r.t. W2 matrix
+        dW2 = np.dot(hidden_layer_scores.T, dS)
+        dW2 += 2 * reg * W2
+        
+        # Derivative of loss w.r.t. b2 vector (no regularization)
+        db2 = np.sum(dS, axis=0) # Equivalent to taking np.dot(np.ones((1, N)), dS)
+        
+        # Derivative of loss w.r.t. hiden layer score matrix
+        dhls = np.dot(dS, W2.T)
+        # Derivative of loss w.r.t. hidden layer score matrix before ReLU
+        dhls = np.where(hidden_layer_scores > 0, dhls, 0)
+        
+        # Derivative of loss w.r.t. W1 matrix
+        dW1 = np.dot(X.T, dhls)
+        dW1 += 2 * reg * W1
+        
+        # Derivative of loss w.r.t. b1 vector (no regularization)
+        db1 = np.sum(dhls, axis=0)
+        
+        grads['W1'] = dW1
+        grads['b1'] = db1
+        grads['W2'] = dW2
+        grads['b2'] = db2
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -126,7 +172,7 @@ class TwoLayerNet(object):
 
         Inputs:
         - X: A numpy array of shape (N, D) giving training data.
-        - y: A numpy array f shape (N,) giving training labels; y[i] = c means that
+        - y: A numpy array of shape (N,) giving training labels; y[i] = c means that
           X[i] has label c, where 0 <= c < C.
         - X_val: A numpy array of shape (N_val, D) giving validation data.
         - y_val: A numpy array of shape (N_val,) giving validation labels.
@@ -156,7 +202,9 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            mask = np.random.choice(num_train, batch_size)
+            X_batch = X[mask]
+            y_batch = y[mask]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -172,7 +220,8 @@ class TwoLayerNet(object):
             #########################################################################
             # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-            pass
+            for key in self.params:
+                self.params[key] -= learning_rate * grads[key]
 
             # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
@@ -218,7 +267,9 @@ class TwoLayerNet(object):
         ###########################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        W1, b1 = self.params['W1'], self.params['b1']
+        W2, b2 = self.params['W2'], self.params['b2']
+        y_pred = np.argmax(self.loss(X), axis=1)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
