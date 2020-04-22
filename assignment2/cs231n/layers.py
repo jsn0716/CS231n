@@ -27,7 +27,8 @@ def affine_forward(x, w, b):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N = x.shape[0]
+    out = np.dot(x.reshape(N, -1), w) + b
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -60,7 +61,10 @@ def affine_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    N = x.shape[0]
+    dx = np.dot(dout ,w.T).reshape(x.shape)
+    dw = np.dot(x.reshape(N, -1).T, dout)
+    db = np.sum(dout, axis=0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -86,7 +90,7 @@ def relu_forward(x):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    out = np.maximum(0, x)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -113,7 +117,7 @@ def relu_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    dx = dout * (x > 0)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -193,7 +197,18 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        sample_mean = np.mean(x, axis=0)
+        sample_var = np.var(x, axis=0)
+        sample_std = np.sqrt(sample_var + eps)
+        
+        x_zero_centered = (x - sample_mean)
+        x_norm = x_zero_centered / sample_std
+        out = gamma * x_norm + beta
+        
+        running_mean = momentum * running_mean + (1 - momentum) * sample_mean
+        running_var = momentum * running_var + (1 - momentum) * sample_var
+        
+        cache = (sample_std, gamma, x_zero_centered, x_norm)
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -208,7 +223,8 @@ def batchnorm_forward(x, gamma, beta, bn_param):
         #######################################################################
         # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-        pass
+        x_norm = (x - running_mean) / np.sqrt(running_var + eps)
+        out = gamma * x_norm + beta
 
         # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
         #######################################################################
@@ -250,7 +266,22 @@ def batchnorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    sample_std, gamma, x_zero_centered, x_norm = cache
+    
+    # Refer to the original paper for the back prop equations
+    # Further explanation including computational graph visualization here:
+    # https://kratzert.github.io/2016/02/12/understanding-the-gradient-flow-through-the-batch-normalization-layer.html
+    
+    N = dout.shape[0]
+    
+    dbeta = np.sum(dout, axis=0)
+    
+    dgamma = np.sum(dout * x_norm, axis=0)
+    
+    dx_norm = dout * gamma
+    dvar = np.sum(dx_norm * x_zero_centered, axis=0) * -1 / 2 * sample_std ** -3
+    dmean = np.sum(dx_norm * -1 / sample_std, axis=0) + dvar * np.sum(-2 * x_zero_centered, axis=0) / N
+    dx = dx_norm / sample_std + dvar * 2 * x_zero_centered / N + dmean / N
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -285,7 +316,15 @@ def batchnorm_backward_alt(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    sample_std, gamma, x_zero_centered, x_norm = cache
+    
+    # Refer to following for simplification: https://costapt.github.io/2016/07/09/batch-norm-alt/
+    
+    N = dout.shape[0]
+    
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(dout * x_norm, axis=0)
+    dx = gamma / (N * sample_std) * (N * dout - dgamma * x_norm - dbeta)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -331,7 +370,21 @@ def layernorm_forward(x, gamma, beta, ln_param):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    x = x.T
+    
+    sample_mean = np.mean(x, axis=0)
+    sample_var = np.var(x, axis=0)
+    sample_std = np.sqrt(sample_var + eps)
+
+    x_zero_centered = (x - sample_mean)
+    x_norm = x_zero_centered / sample_std
+
+    x_zero_centered = x_zero_centered.T
+    x_norm = x_norm.T
+    
+    out = gamma * x_norm + beta
+    
+    cache = (sample_std, gamma, x_zero_centered, x_norm)
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
@@ -366,7 +419,20 @@ def layernorm_backward(dout, cache):
     ###########################################################################
     # *****START OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
 
-    pass
+    sample_std, gamma, x_zero_centered, x_norm = cache
+    
+    N = dout.shape[1]
+    
+    dbeta = np.sum(dout, axis=0)
+    dgamma = np.sum(dout * x_norm, axis=0)
+    
+    dx_norm = dout * gamma
+    dx_norm = dx_norm.T
+    x_norm = x_norm.T
+    dout = dout.T
+    
+    dx = 1.0 / (N * sample_std) * (N * dx_norm - np.sum(dx_norm, axis=0) - x_norm * np.sum(dx_norm * x_norm, axis=0))
+    dx = dx.T
 
     # *****END OF YOUR CODE (DO NOT DELETE/MODIFY THIS LINE)*****
     ###########################################################################
